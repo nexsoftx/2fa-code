@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- Version v0.5 -->
+  <!-- Version v0.6 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2FA Live Code — Real-Time Two-Factor Authenticator & Security Tools</title>
@@ -1802,21 +1802,27 @@
     }
 
     /* Modal Dialogs */
+    /* Pause all background page animations when QR modal is open to free 100% GPU for camera */
+    body.qr-modal-open header *,
+    body.qr-modal-open main *,
+    body.qr-modal-open footer * {
+      animation-play-state: paused !important;
+    }
+
     .modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(3, 5, 10, 0.88);
-      backdrop-filter: blur(10px);
+      background: rgba(4, 7, 18, 0.92);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1000;
       opacity: 0;
       visibility: hidden;
-      transition: all 0.25s ease;
+      transition: opacity 0.22s ease, visibility 0.22s ease;
       padding: 20px;
     }
 
@@ -1826,20 +1832,15 @@
     }
 
     .modal-card {
-      background: #0d121f;
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
+      background: #0b1120;
+      border: 1px solid rgba(99, 102, 241, 0.28);
+      border-radius: 6px;
       width: 100%;
       max-width: 520px;
       padding: 28px;
       position: relative;
       box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
-      transform: scale(0.95);
-      transition: transform 0.25s ease;
-    }
-
-    .modal-overlay.active .modal-card {
-      transform: scale(1);
+      transform: translateZ(0);
     }
 
     .modal-close-btn {
@@ -1869,13 +1870,14 @@
     .scanner-video-wrap {
       position: relative;
       width: 100%;
-      border-radius: 3.5px;
+      border-radius: 6px;
       overflow: hidden;
-      background: #050811;
-      border: 1px solid rgba(56, 189, 248, 0.35);
+      background: #03060f;
+      border: 1px solid rgba(56, 189, 248, 0.38);
       display: none;
       margin-bottom: 14px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      transform: translateZ(0);
     }
 
     .scanner-video-wrap.active {
@@ -1888,41 +1890,175 @@
       aspect-ratio: 4/3;
       object-fit: cover;
       background: #000;
+      transform: translateZ(0);
     }
 
     .scanner-reticle {
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       pointer-events: none;
+      z-index: 2;
+      background: radial-gradient(
+        circle at 50% 46%,
+        rgba(4, 8, 20, 0) 108px,
+        rgba(4, 8, 20, 0.38) 170px,
+        rgba(3, 6, 16, 0.62) 100%
+      );
     }
 
+    /* No overflow:hidden + border-radius clipping here so GPU composites .scanner-laser with zero mask overhead */
     .scanner-reticle-box {
-      width: 62%;
-      max-width: 220px;
-      aspect-ratio: 1 / 1;
-      border: 2px solid rgba(56, 189, 248, 0.85);
-      border-radius: 4px;
-      box-shadow: 0 0 0 9999px rgba(3, 6, 14, 0.42), 0 0 20px rgba(56, 189, 248, 0.35), inset 0 0 20px rgba(56, 189, 248, 0.2);
+      width: 216px;
+      height: 216px;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      border-radius: 14px;
+      background:
+        linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+      background-size: 27px 27px;
       position: relative;
-      overflow: hidden;
+      transform: translateZ(0);
     }
 
+    .scanner-corner {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: #38bdf8;
+      border-style: solid;
+      border-width: 0;
+      pointer-events: none;
+      z-index: 3;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }
+
+    .scanner-corner.tl {
+      top: -1px;
+      left: -1px;
+      border-top-width: 3.5px;
+      border-left-width: 3.5px;
+      border-top-left-radius: 14px;
+      box-shadow: -2px -2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    .scanner-corner.tr {
+      top: -1px;
+      right: -1px;
+      border-top-width: 3.5px;
+      border-right-width: 3.5px;
+      border-top-right-radius: 14px;
+      box-shadow: 2px -2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    .scanner-corner.bl {
+      bottom: -1px;
+      left: -1px;
+      border-bottom-width: 3.5px;
+      border-left-width: 3.5px;
+      border-bottom-left-radius: 14px;
+      box-shadow: -2px 2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    .scanner-corner.br {
+      bottom: -1px;
+      right: -1px;
+      border-bottom-width: 3.5px;
+      border-right-width: 3.5px;
+      border-bottom-right-radius: 14px;
+      box-shadow: 2px 2px 10px rgba(56, 189, 248, 0.35);
+    }
+
+    /* Ultra-smooth GPU-composited laser + dynamic bi-directional radar curtain */
     .scanner-laser {
       position: absolute;
-      left: 6%;
-      right: 6%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #38bdf8, #ffffff, #38bdf8, transparent);
-      box-shadow: 0 0 10px #38bdf8, 0 0 18px #06b6d4;
-      animation: scannerLaserSweep 2s ease-in-out infinite alternate;
+      top: 0;
+      left: 8px;
+      right: 8px;
+      height: 2.5px;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        rgba(56, 189, 248, 0) 0%,
+        rgba(14, 165, 233, 0.8) 12%,
+        #38bdf8 30%,
+        #ffffff 50%,
+        #38bdf8 70%,
+        rgba(14, 165, 233, 0.8) 88%,
+        rgba(56, 189, 248, 0) 100%
+      );
+      box-shadow: 0 0 10px #38bdf8, 0 0 22px rgba(99, 102, 241, 0.8);
+      will-change: transform;
+      transform: translate3d(0, 16px, 0);
+      z-index: 2;
+      backface-visibility: hidden;
     }
 
-    @keyframes scannerLaserSweep {
-      0% { top: 8%; }
-      100% { top: 90%; }
+    /* Center bright focal flare on the laser line */
+    .scanner-laser::after {
+      content: "";
+      position: absolute;
+      left: 26%;
+      right: 26%;
+      top: -1.5px;
+      height: 5.5px;
+      border-radius: 999px;
+      background: radial-gradient(ellipse at center, #ffffff 0%, rgba(56, 189, 248, 0.85) 55%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Dynamic velocity-scaled radar trail that flips smoothly on up vs down sweep */
+    .scanner-laser-trail {
+      position: absolute;
+      left: 2%;
+      right: 2%;
+      bottom: 50%;
+      height: 54px;
+      background: linear-gradient(
+        180deg,
+        rgba(56, 189, 248, 0) 0%,
+        rgba(99, 102, 241, 0.12) 42%,
+        rgba(56, 189, 248, 0.38) 100%
+      );
+      transform-origin: center bottom;
+      transform: scaleY(0);
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
+
+    .scanner-hud-pill {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(6, 11, 25, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.32);
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      color: #7dd3fc;
+      text-transform: uppercase;
+    }
+
+    .scanner-hud-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 6px #38bdf8;
+    }
+
+    @media (max-width: 480px) {
+      .scanner-reticle-box {
+        width: 184px;
+        height: 184px;
+      }
     }
 
     .scanner-camera-bar {
@@ -3208,7 +3344,17 @@
         <video id="scanner-video" playsinline autoplay muted></video>
         <div class="scanner-reticle">
           <div class="scanner-reticle-box">
-            <div class="scanner-laser"></div>
+            <span class="scanner-corner tl"></span>
+            <span class="scanner-corner tr"></span>
+            <span class="scanner-corner bl"></span>
+            <span class="scanner-corner br"></span>
+            <div class="scanner-laser" id="scanner-laser">
+              <div class="scanner-laser-trail" id="scanner-laser-trail"></div>
+            </div>
+          </div>
+          <div class="scanner-hud-pill">
+            <span class="scanner-hud-dot"></span>
+            <span>OPTICAL QR SCANNER ACTIVE</span>
           </div>
         </div>
       </div>
@@ -4503,6 +4649,12 @@
       // 2. Traveling luminous energy wave across active bars
       // 3. Silky eased width + opacity + glow drain on the active slot (and new-cycle cascade refill)
       function animateEqualizerFrame() {
+        // When QR modal is open over the page, pause background 30-bar DOM mutations
+        // so backdrop-filter blur does not re-rasterize 60 times/sec during live camera scanning
+        if (qrModal && qrModal.classList.contains('active')) {
+          requestAnimationFrame(animateEqualizerFrame);
+          return;
+        }
         const nowMs = getSyncedNowMs();
         const periodMs = 30000;
         const elapsedInPeriod = ((nowMs % periodMs) + periodMs) % periodMs;
@@ -4907,11 +5059,13 @@
 
       // QR Modal & Camera Handlers
       function openQrModal() {
+        document.body.classList.add('qr-modal-open');
         qrModal.classList.add('active');
         scannerStatus.textContent = '';
       }
 
       function closeQrModal() {
+        document.body.classList.remove('qr-modal-open');
         qrModal.classList.remove('active');
         stopCamera();
       }
@@ -4924,6 +5078,8 @@
 
       // Live Video Camera Scanner
       let isScanningFrame = false;
+      const scannerLaserEl = document.getElementById('scanner-laser');
+      const scannerLaserTrailEl = document.getElementById('scanner-laser-trail');
 
       async function startCamera() {
         stopCamera();
@@ -4938,12 +5094,14 @@
 
         let stream = null;
         try {
+          // Request lightweight 640x480 @ 30fps stream so webcam + GPU compositing never lags
           stream = await navMedia.getUserMedia({
             audio: false,
             video: {
               facingMode: { ideal: currentFacingMode },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 30 }
             }
           });
         } catch (err1) {
@@ -4979,29 +5137,188 @@
         const canvas = scannerCanvas;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         let lastScanTime = 0;
+        let scanTickCount = 0;
+        let animStartTime = performance.now();
+        let nativeBarcodeDetector = null;
+        if ('BarcodeDetector' in window) {
+          try {
+            nativeBarcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+          } catch (e) {}
+        }
 
-        async function scanLoop(timestamp) {
+        // Dedicated Web Worker with inline-cached jsQR + OffscreenCanvas so drawImage + getImageData + jsQR run 100% OFF the main thread (even in sandboxed iframes)
+        if (!window._qrDecodeWorker && window._qrDecodeWorker !== false && typeof Worker !== 'undefined') {
+          try {
+            let inlineJsQrCode = '';
+            try {
+              const cachedRes = await fetch('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js', { cache: 'force-cache' });
+              if (cachedRes.ok) inlineJsQrCode = await cachedRes.text();
+            } catch (fetchErr) {}
+            const workerCode = `
+              ${inlineJsQrCode}
+              if (typeof self.jsQR !== 'function') {
+                try {
+                  importScripts('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js');
+                } catch (e) {}
+              }
+              let offCanvas = null;
+              let offCtx = null;
+              self.onmessage = function(e) {
+                if (typeof self.jsQR !== 'function') {
+                  if (e.data.bitmap && e.data.bitmap.close) e.data.bitmap.close();
+                  self.postMessage({ data: null, ready: false });
+                  return;
+                }
+                const { bitmap, buffer, width, height, invert, cropCenter } = e.data;
+                if (bitmap && typeof OffscreenCanvas !== 'undefined') {
+                  const targetW = width || 260;
+                  const targetH = height || 260;
+                  if (!offCanvas || offCanvas.width !== targetW || offCanvas.height !== targetH) {
+                    offCanvas = new OffscreenCanvas(targetW, targetH);
+                    offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+                  }
+                  offCtx.imageSmoothingEnabled = false;
+                  if (cropCenter) {
+                    const minSide = Math.min(bitmap.width, bitmap.height);
+                    const cSize = Math.round(minSide * 0.65);
+                    const cx = Math.round((bitmap.width - cSize) / 2);
+                    const cy = Math.round((bitmap.height - cSize) / 2);
+                    offCtx.drawImage(bitmap, cx, cy, cSize, cSize, 0, 0, targetW, targetH);
+                  } else {
+                    offCtx.drawImage(bitmap, 0, 0, targetW, targetH);
+                  }
+                  bitmap.close();
+                  const imgData = offCtx.getImageData(0, 0, targetW, targetH);
+                  const res = self.jsQR(imgData.data, targetW, targetH, {
+                    inversionAttempts: invert ? 'attemptBoth' : 'dontInvert'
+                  });
+                  self.postMessage({ data: (res && res.data) ? res.data : null, ready: true });
+                  return;
+                }
+                if (buffer) {
+                  const arr = new Uint8ClampedArray(buffer);
+                  const res = self.jsQR(arr, width, height, {
+                    inversionAttempts: invert ? 'attemptBoth' : 'dontInvert'
+                  });
+                  self.postMessage({ data: (res && res.data) ? res.data : null, ready: true });
+                } else {
+                  self.postMessage({ data: null, ready: true });
+                }
+              };
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            window._qrDecodeWorker = new Worker(URL.createObjectURL(blob));
+          } catch (workerErr) {
+            window._qrDecodeWorker = null;
+          }
+        }
+
+        async function scanLiveVideoFrame(videoEl, srcW, srcH) {
+          if (nativeBarcodeDetector) {
+            try {
+              const codes = await nativeBarcodeDetector.detect(videoEl);
+              if (codes && codes.length > 0 && codes[0].rawValue) {
+                return codes[0].rawValue;
+              }
+            } catch (e) {}
+          }
+
+          const passMode = scanTickCount % 3;
+          scanTickCount++;
+          const isZoomPass = (passMode === 2);
+
+          // Path A: Zero-Main-Thread-Readback via async createImageBitmap + OffscreenCanvas inside Worker
+          const worker = window._qrDecodeWorker;
+          if (worker && typeof createImageBitmap === 'function' && typeof OffscreenCanvas !== 'undefined') {
+            try {
+              const bmp = await createImageBitmap(videoEl);
+              const scale = Math.min(1, 280 / Math.max(srcW, srcH));
+              const w = isZoomPass ? 240 : Math.max(64, Math.round(srcW * scale));
+              const h = isZoomPass ? 240 : Math.max(64, Math.round(srcH * scale));
+              const workerRes = await new Promise((resolve) => {
+                const tid = setTimeout(() => resolve({ data: null, ready: true }), 200);
+                worker.onmessage = (ev) => {
+                  clearTimeout(tid);
+                  resolve(ev.data || { data: null, ready: false });
+                };
+                worker.onerror = () => {
+                  clearTimeout(tid);
+                  resolve({ data: null, ready: false });
+                };
+                worker.postMessage({ bitmap: bmp, width: w, height: h, invert: isZoomPass, cropCenter: isZoomPass }, [bmp]);
+              });
+              if (workerRes.ready) {
+                return workerRes.data;
+              } else {
+                window._qrDecodeWorker = false;
+              }
+            } catch (bmpErr) {}
+          }
+
+          // Path B: Lightweight 220x220 fallback if Worker/OffscreenCanvas is unavailable
+          if (typeof jsQR !== 'undefined') {
+            const sz = 220;
+            if (canvas.width !== sz) canvas.width = sz;
+            if (canvas.height !== sz) canvas.height = sz;
+            ctx.imageSmoothingEnabled = false;
+            const minSide = Math.min(srcW, srcH);
+            const cropSize = Math.round(minSide * 0.72);
+            const cropX = Math.round((srcW - cropSize) / 2);
+            const cropY = Math.round((srcH - cropSize) / 2);
+            ctx.drawImage(videoEl, cropX, cropY, cropSize, cropSize, 0, 0, sz, sz);
+            const imgData = ctx.getImageData(0, 0, sz, sz);
+            const res = jsQR(imgData.data, sz, sz, { inversionAttempts: 'dontInvert' });
+            return (res && res.data) ? res.data : null;
+          }
+          return null;
+        }
+
+        function updateScannerLaserAnimation(now) {
+          if (!scannerLaserEl) return;
+          const isMobileBox = window.innerWidth <= 480;
+          const minY = 12;
+          const maxY = isMobileBox ? 170 : 201;
+          const midY = (minY + maxY) * 0.5;
+          const amp = (maxY - minY) * 0.5;
+
+          // Pure 60fps/120fps harmonic sine motion (2.2s full up-down cycle)
+          const elapsedSec = (now - animStartTime) / 1000;
+          const omega = (Math.PI * 2) / 2.8;
+          const angle = elapsedSec * omega;
+          const y = midY - amp * Math.cos(angle);
+          const velocity = Math.sin(angle); // +1 moving down, -1 moving up, 0 at turnarounds
+
+          scannerLaserEl.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0)`;
+          if (scannerLaserTrailEl) {
+            // Trail stretches smoothly behind the direction of travel and contracts to 0 at turnarounds
+            scannerLaserTrailEl.style.transform = `scaleY(${velocity.toFixed(3)})`;
+            scannerLaserTrailEl.style.opacity = Math.min(1, Math.abs(velocity) * 1.15).toFixed(2);
+          }
+        }
+
+        function scanLoop(timestamp) {
           if (!videoStream) return;
 
-          if (!isScanningFrame && timestamp - lastScanTime >= 85) {
+          // 1. Update laser & holographic radar curtain on every single display frame (locked 60/120fps)
+          updateScannerLaserAnimation(timestamp);
+
+          // 2. Trigger non-blocking background QR frame check every 220ms
+          if (!isScanningFrame && timestamp - lastScanTime >= 220) {
             const vw = scannerVideo.videoWidth;
             const vh = scannerVideo.videoHeight;
             if (scannerVideo.readyState >= 2 && vw > 0 && vh > 0) {
               isScanningFrame = true;
               lastScanTime = timestamp;
-              try {
-                const detected = await multiPassDecodeSource(scannerVideo, vw, vh, canvas, ctx);
+              scanLiveVideoFrame(scannerVideo, vw, vh).then((detected) => {
+                isScanningFrame = false;
                 if (detected && videoStream) {
-                  isScanningFrame = false;
                   handleDecodedSecret(detected);
                   closeQrModal();
                   showToast('QR Code scanned successfully!');
-                  return;
                 }
-              } catch (scanErr) {
-                console.warn('Frame scan error:', scanErr);
-              }
-              isScanningFrame = false;
+              }).catch(() => {
+                isScanningFrame = false;
+              });
             }
           }
 
